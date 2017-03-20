@@ -284,16 +284,16 @@ void setMeasure(m_tree_t* node)
 {
   // if leaf
   if(node->right == NULL){
-    node->measure = MIN(node->rightMax, node->r) - MAX(node->leftMin, node->l);
+    node->measure = MIN(node->rightmax, node->upper_val) - MAX(node->leftmin, node->lower_val);
     return;
   }  
-  if(node->right->leftMin < node->l && node->left->rightMax >= node->r)
-      node->measure = node->r - node->l;
-  if(node->right->leftMin >= node->l && node->left->rightMax >= node->r)
-      node->measure = node->r - node->key + node->left->measure;
-  if(node->right->leftMin < node->l && node->left->rightMax < node->r)
-      node->measure = node->right->measure + node->key - node->l;
-  if(node->right->leftMin >= node->l && node->left->rightMax < node->r)
+  if(node->right->leftmin < node->lower_val && node->left->rightmax >= node->upper_val)
+      node->measure = node->upper_val - node->lower_val;
+  if(node->right->leftmin >= node->lower_val && node->left->rightmax >= node->upper_val)
+      node->measure = node->upper_val - node->key + node->left->measure;
+  if(node->right->leftmin < node->lower_val && node->left->rightmax < node->upper_val)
+      node->measure = node->right->measure + node->key - node->lower_val;
+  if(node->right->leftmin >= node->lower_val && node->left->rightmax < node->upper_val)
       node->measure = node->right->measure + node->left->measure;
 }
 
@@ -301,7 +301,7 @@ void setMeasure(m_tree_t* node)
 void setMinMax(m_tree_t* tree){
   if(tree->right != NULL)
     return;
-  struct interval_list *head = tree->right;
+  struct interval_list *head = (interval_list*) tree->right;
   int minimum = head->interval.a;
   int maximum = head->interval.b;
   while(head != NULL){
