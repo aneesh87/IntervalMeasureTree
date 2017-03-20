@@ -99,6 +99,42 @@ void left_rotate (m_tree_t * n)
 
 }
 
+// 4 conditions taken from textbook
+void setMeasure(m_tree_t* node)
+{
+  // if leaf
+  if(node->right == NULL){
+    node->measure = MIN(node->rightmax, node->upper_val) - MAX(node->leftmin, node->lower_val);
+    return;
+  }  
+  if(node->right->leftmin < node->lower_val && node->left->rightmax >= node->upper_val)
+      node->measure = node->upper_val - node->lower_val;
+  if(node->right->leftmin >= node->lower_val && node->left->rightmax >= node->upper_val)
+      node->measure = node->upper_val - node->key + node->left->measure;
+  if(node->right->leftmin < node->lower_val && node->left->rightmax < node->upper_val)
+      node->measure = node->right->measure + node->key - node->lower_val;
+  if(node->right->leftmin >= node->lower_val && node->left->rightmax < node->upper_val)
+      node->measure = node->right->measure + node->left->measure;
+}
+
+void setMinMax(m_tree_t* tree){
+  if(tree->right != NULL)
+    return;
+  struct interval_list *head = (interval_list*) tree->left;
+  int minimum = head->interval.a;
+  int maximum = head->interval.b;
+  while(head != NULL){
+    if(head->interval.a < minimum)
+      minimum = head->interval.a;
+    if(head->interval.b > maximum)
+      maximum = head->interval.b;
+    head = head->next;
+  }
+  tree->leftmin = minimum;
+  tree->rightmax = maximum;
+}
+
+
 void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
 {  
     int st_size = 200;
@@ -107,7 +143,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     tmp_node = tree;
     int top = -1;
 
-    struct interval_t * x = (struct interval_t *) calloc(1, sizeof(struct interval_t));
+    struct interval_list * x = (struct interval_list *) calloc(1, sizeof(struct interval_list));
     x->interval = T;
 
     if (tree->left == NULL) {
@@ -134,9 +170,9 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     }
     /* found the candidate leaf. Test whether key distinct */ 
     if (new_key == tmp_node->key) {
-        struct interval_t * temp = (struct interval_t * t) tmp_node->left;
-        x->next = (struct interval_t *t)temp;
-        tmp_node->left = (m_tree_t *)x;
+        struct interval_list * temp = (struct interval_list * ) tmp_node->left;
+        x->next = (struct interval_list *)temp;
+        tmp_node->left = (m_tree_t *) x;
         tmp_node->leftmin = MIN(T.a, tmp_node->leftmin);
         tmp_node->rightmax = MAX(T.b, tmp_node->rightmax);
         setMeasure(tmp_node);
@@ -152,7 +188,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     old_leaf->rightmax = tmp_node->rightmax;
     new_leaf = get_node();
 
-    new_leaf->left = x;    
+    new_leaf->left = (m_tree_t *)x;    
     new_leaf->key = new_key;
     new_leaf->leftmin = T.a;
     new_leaf->rightmax = T.b;
@@ -323,41 +359,6 @@ void insert_interval( m_tree_t *tree, int lower, int upper) {
 
     insert(tree, lower,  y);
     insert(tree, upper,  y);
-}
-
-// 4 conditions taken from textbook
-void setMeasure(m_tree_t* node)
-{
-  // if leaf
-  if(node->right == NULL){
-    node->measure = MIN(node->rightmax, node->upper_val) - MAX(node->leftmin, node->lower_val);
-    return;
-  }  
-  if(node->right->leftmin < node->lower_val && node->left->rightmax >= node->upper_val)
-      node->measure = node->upper_val - node->lower_val;
-  if(node->right->leftmin >= node->lower_val && node->left->rightmax >= node->upper_val)
-      node->measure = node->upper_val - node->key + node->left->measure;
-  if(node->right->leftmin < node->lower_val && node->left->rightmax < node->upper_val)
-      node->measure = node->right->measure + node->key - node->lower_val;
-  if(node->right->leftmin >= node->lower_val && node->left->rightmax < node->upper_val)
-      node->measure = node->right->measure + node->left->measure;
-}
-
-void setMinMax(m_tree_t* tree){
-  if(tree->right != NULL)
-    return;
-  struct interval_list *head = (interval_list*) tree->left;
-  int minimum = head->interval.a;
-  int maximum = head->interval.b;
-  while(head != NULL){
-    if(head->interval.a < minimum)
-      minimum = head->interval.a;
-    if(head->interval.b > maximum)
-      maximum = head->interval.b;
-    head = head->next;
-  }
-  tree->leftmin = minimum;
-  tree->rightmax = maximum;
 }
 
 void delete_interval( m_tree_t *tree, int lower, int upper) {
