@@ -279,6 +279,42 @@ void insert_interval( m_tree_t *tree, int lower, int upper) {
     insert(tree, upper,  y);
 }
 
+// 4 conditions taken from textbook
+void setMeasure(m_tree_t* node)
+{
+  // if leaf
+  if(node->right == NULL){
+    node->measure = MIN(node->rightMax, node->r) - MAX(node->leftMin, node->l);
+    return;
+  }  
+  if(node->right->leftMin < node->l && node->left->rightMax >= node->r)
+      node->measure = node->r - node->l;
+  if(node->right->leftMin >= node->l && node->left->rightMax >= node->r)
+      node->measure = node->r - node->key + node->left->measure;
+  if(node->right->leftMin < node->l && node->left->rightMax < node->r)
+      node->measure = node->right->measure + node->key - node->l;
+  if(node->right->leftMin >= node->l && node->left->rightMax < node->r)
+      node->measure = node->right->measure + node->left->measure;
+}
+
+
+void setMinMax(m_tree_t* tree){
+  if(tree->right != NULL)
+    return;
+  struct interval_list *head = tree->right;
+  int minimum = head->interval.a;
+  int maximum = head->interval.b;
+  while(head != NULL){
+    if(head->interval.a < minimum)
+      minimum = head->interval.a;
+    if(head->interval.b > maximum)
+      maximum = head->interval.b;
+    head = head->next;
+  }
+  tree->leftmin = minimum;
+  tree->rightmax = maximum;
+}
+
 void delete_interval( m_tree_t *tree, int lower, int upper) {
   /* deletes the interval from the tree
   */
