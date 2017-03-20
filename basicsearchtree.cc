@@ -127,7 +127,9 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     old_leaf->key = tmp_node->key;
     old_leaf->right  = NULL;
     new_leaf = get_node();
-    new_leaf->left = (m_tree_t *) new_object; 
+    /* 
+       new_leaf->left = (m_tree_t *) new_object; 
+    */
     new_leaf->key = new_key;
     new_leaf->right  = NULL;
 
@@ -255,7 +257,7 @@ m_tree_t * create_m_tree() {
   new_tree->leftmin = INT_MIN;
   new_tree->rightmax = INT_MAX;
   
-  return ( new_text );
+  return ( new_tree );
 }
 
 int query_length(m_tree_t *tree) {
@@ -280,7 +282,7 @@ void insert_interval( m_tree_t *tree, int lower, int upper) {
 void delete_interval( m_tree_t *tree, int lower, int upper) {
   /* deletes the interval from the tree
   */
-  if (tree == NULL || lower >= upper) return NULL;
+  if (tree == NULL || lower >= upper) return;
   
   struct interval_t y;
   y.a = lower;
@@ -352,47 +354,32 @@ int main()
    
    m_tree_t *searchtree;
    char nextop;
-   searchtree = create_text();
+   searchtree = create_m_tree();
    printf("Made Tree\n");
    printf("In the following, the key n is associated wth the objecct 10n+2\n");
    while( (nextop = getchar())!= 'q' )
    { if( nextop == 'i' )
-     { int inskey, success;
-       char *strobj;
-       strobj = (char *) malloc(sizeof(char) * 100);
-       scanf(" %d", &inskey);
+     { int x,y, success;
+       scanf(" %d", &x);
        fseek(stdin,0,SEEK_END);
-       scanf ("%[^\n]%*c", strobj);
-       insert_line( searchtree, inskey, strobj );
-       printf("  insert line successful, key = %d, object value = %s, \n",
-            inskey, strobj);
+       scanf ("%d %d", &x, &y);
+       insert_interval(searchtree, x, y);
+       printf("  insert line successful, key = %d, key = %d, \n",
+            x, y);
        level_order(searchtree);
      }  
      if(nextop == 'f' ) { 
-        int findkey;
-        char *findobj;
-        scanf(" %d", &findkey);
-        findobj = get_line( searchtree, findkey);
-        if(findobj == NULL) {
-           printf("  get line failed, for key %d\n", findkey);
-        } else {
-           printf("  get line successful, found object %s\n", findobj);
-        }
+        printf("query_length %d\n", query_length(searchtree));
      }
      if( nextop == 'd' )
-     { int delkey;
-       char *delobj;
-       scanf(" %d", &delkey);
-       delobj = _delete( searchtree, delkey);
-       if( delobj == NULL )
-         printf("  delete failed for key %d\n", delkey);
-       else {
-         printf("  delete successful, deleted object %s for key %d\n", delobj, delkey);
-         level_order(searchtree);
-       }
+     { int x,y;
+       scanf(" %d", &x);
+       scanf(" %d", &y);
+       delete_interval( searchtree, x, y);
+       level_order(searchtree);
      }
    }
-   remove_tree( searchtree );
+   destroy_m_tree(searchtree);
    printf("Removed tree.\n");
    printf("Total number of nodes taken %d, total number of nodes returned %d\n",
     nodes_taken, nodes_returned );
