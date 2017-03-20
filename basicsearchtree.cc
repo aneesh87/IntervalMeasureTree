@@ -106,6 +106,19 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     m_tree_t *tmp_node;
     tmp_node = tree;
     int top = -1;
+
+    struct interval_t * x = (struct interval_t *) calloc(1, sizeof(struct interval_t));
+    x->interval = T;
+
+    if (tree->left == NULL) {
+      tree->key = new_key;
+      tree->leftmin = T.a;
+      tree->rightmax = T.b;
+      tree->lower_val = INT_MIN;
+      tree->upper_val = INT_MAX;
+      tree->left = (m_tree_t *) x;
+      return;
+    }
     while( tmp_node->right != NULL ) {
           if (top == st_size -1) {
               // TODO: realloc ??
@@ -120,33 +133,66 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
           }
     }
     /* found the candidate leaf. Test whether key distinct */ 
-    /* key is distinct, now perform the insert */ 
+    if (new_key == tmp_node->key) {
+        struct interval_t * temp = (struct interval_t * t) tmp_node->left;
+        x->next = (struct interval_t *t)temp;
+        tmp_node->left = (m_tree_t *)x;
+        tmp_node->leftmin = MIN(T.a, tmp_node->leftmin);
+        tmp_node->rightmax = MAX(T.b, tmp_node->rightmax);
+        setMeasure(tmp_node);
+        return;
+    }
+
     m_tree_t *old_leaf, *new_leaf;
     old_leaf = get_node();
     old_leaf->left = tmp_node->left; 
     old_leaf->key = tmp_node->key;
     old_leaf->right  = NULL;
+    old_leaf->leftmin = tmp_node->leftmin;
+    old_leaf->rightmax = tmp_node->rightmax;
     new_leaf = get_node();
-    /* 
-       new_leaf->left = (m_tree_t *) new_object; 
-    */
+
+    new_leaf->left = x;    
     new_leaf->key = new_key;
+    new_leaf->leftmin = T.a;
+    new_leaf->rightmax = T.b;
     new_leaf->right  = NULL;
 
     if (tmp_node->key < new_key ) {
         tmp_node->left = old_leaf;
         tmp_node->right = new_leaf;
         tmp_node->key = new_key;
+        old_leaf->lower_val = tmp_node->lower_val;
+        old_leaf->upper_val = new_key;
+        new_leaf->lower_val = new_key;
+        new_leaf->upper_val = tmp_node->upper_val;
     } else {     
         tmp_node->left = new_leaf;
         tmp_node->right = old_leaf;
+        new_leaf->lower_val = tmp_node->lower_val;
+        new_leaf->upper_val = new_key;
+        old_leaf->lower_val = new_key;
+        old_leaf->upper_val = tmp_node->upper_val;
     }
 
-    //set the heights of the nodes
+    //set the heights and measures of the nodes
+    setMeasure(old_leaf);
+    setMeasure(new_leaf);
+    setMeasure(tmp_node);
     tmp_node->height = 1;
     new_leaf->height = 0;
     old_leaf->height = 0;
-    
+    tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
+    tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+
+    int temp_top = top;
+    while(top >=0) {
+      tmp_node = stack[top--];
+      setMeasure(tmp_node);
+      tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
+      tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+    }
+    top = temp_top;
     while (top >= 0) { 
         tmp_node = stack[top--];
         int prev_height = tmp_node->height;
@@ -297,11 +343,10 @@ void setMeasure(m_tree_t* node)
       node->measure = node->right->measure + node->left->measure;
 }
 
-
 void setMinMax(m_tree_t* tree){
   if(tree->right != NULL)
     return;
-  struct interval_list *head = (interval_list*) tree->right;
+  struct interval_list *head = (interval_list*) tree->left;
   int minimum = head->interval.a;
   int maximum = head->interval.b;
   while(head != NULL){
