@@ -84,7 +84,7 @@ void setMeasure(m_tree_t* node)
 void setMinMax(m_tree_t* tree){
   if(tree->right != NULL)
     return;
-  struct interval_list *head = (interval_list*) tree->left;
+  struct interval_list *head = (struct interval_list*) tree->left;
   int minimum = head->interval.a;
   int maximum = head->interval.b;
   while(head != NULL){
@@ -155,7 +155,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
 
     struct interval_list * x = (struct interval_list *) calloc(1, sizeof(struct interval_list));
     x->interval = T;
-
+    // Empty Tree
     if (tree->left == NULL) {
       tree->key = new_key;
       tree->leftmin = T.a;
@@ -232,6 +232,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
         tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
         tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
     }
+    // set Measures along the path to the root
     int temp_top = top;
     while(top >=0) {
       tmp_node = stack[top--];
@@ -239,9 +240,8 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
       tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
       tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
     }
-  
+    // Tree may need to be balanced
     top = temp_top;
-    
     while (top >= 0) { 
         tmp_node = stack[top--];
         int prev_height = tmp_node->height;
@@ -263,16 +263,15 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
                tmp_node->height = 1 + MAX(tmp_node->left->height, tmp_node->right->height);
         }
         if(tmp_node->height == prev_height) break;
-  }
+    }
 }
 
 object_t *_delete(m_tree_t *tree, key_t delete_key, struct interval_t T)
 {  m_tree_t *tmp_node, *upper_node, *other_node;
    
    object_t *deleted_object;
-   int st_size = 200;
-   //m_tree_t ** stack = (m_tree_t **) calloc(st_size, sizeof(m_tree_t *));
-   m_tree_t * stack[200];
+   int st_size = 1000;
+   m_tree_t * stack[1000];
    int top = -1;
    
    if (tree->key == 1 || delete_key >= tree->key) {
@@ -387,6 +386,15 @@ void delete_interval( m_tree_t *tree, int lower, int upper) {
   _delete(tree, upper, y); 
 }
 
+void destroy_list(struct interval_list * t) {
+  while (t != NULL) {
+      //printf("deleted (%d %d)\n", t->interval.a, t->interval.b);
+      struct interval_list *tmp = t; 
+      t = t->next;
+      free(tmp);
+  }
+}
+
 void destroy_m_tree(m_tree_t *tree)
 {  m_tree_t *current_node, *tmp;
    if( tree->left == NULL )
@@ -395,7 +403,10 @@ void destroy_m_tree(m_tree_t *tree)
    {  current_node = tree;
       while(current_node->right != NULL )
       {  if( current_node->left->right == NULL )
-         {  return_node( current_node->left );
+         {  
+            /* Leaves have associated lists which need to be freed*/
+            destroy_list((struct interval_list *)current_node->left->left);
+            return_node( current_node->left );
             tmp = current_node->right;
             return_node( current_node );
             current_node = tmp;
@@ -407,14 +418,15 @@ void destroy_m_tree(m_tree_t *tree)
             current_node = tmp;
          }
       }
+      if (current_node->right == NULL) {
+          destroy_list((struct interval_list *)current_node->left);
+      }
       return_node( current_node );
    }
 }
-
 /*
  Functions to Test
  */
-
 void level_order (m_tree_t *tree) {
     m_tree_t * queue[200];
     m_tree_t * tmp = NULL;
