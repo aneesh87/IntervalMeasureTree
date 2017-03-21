@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 
@@ -63,42 +63,6 @@ void return_node(m_tree_t *node)
    nodes_returned +=1;
 }
 
-void right_rotate (m_tree_t * n) 
-{
-
-   m_tree_t * tmp = n->right;
-   int tmp_key = n->key;
-   n->right = n->left;
-   n->key = n->left->key;
-   n->left = n->left->left;
-   n->right->left = n->right->right;
-   n->right->right = tmp; 
-
-   m_tree_t * x = n->right;
-   x->key = tmp_key;
-   x->height = 1 + MAX(x->left->height, x->right->height);
-
-   n->height = 1 + MAX(n->left->height, n->right->height);
-}
-
-void left_rotate (m_tree_t * n) 
-{
-   m_tree_t * tmp = n->left;
-   int tmp_key = n->key;
-   n->left = n->right;
-   n->key = n->right->key;
-   n->right = n->right->right;
-   n->left->right = n->left->left;
-   n->left->left = tmp; 
-
-   m_tree_t * x = n->left;
-   x->key = tmp_key;
-   x->height = 1 + MAX(x->left->height, x->right->height);
-   
-   n->height = 1 + MAX(n->left->height, n->right->height);
-
-}
-
 // 4 conditions taken from textbook
 void setMeasure(m_tree_t* node)
 {
@@ -134,11 +98,57 @@ void setMinMax(m_tree_t* tree){
   tree->rightmax = maximum;
 }
 
+void right_rotate (m_tree_t * n) 
+{
+
+   m_tree_t * tmp = n->right;
+   int tmp_key = n->key;
+   n->right = n->left;
+   n->key = n->left->key;
+   n->left = n->left->left;
+   n->right->left = n->right->right;
+   n->right->right = tmp; 
+
+   m_tree_t * x = n->right;
+   x->key = tmp_key;
+   x->height = 1 + MAX(x->left->height, x->right->height);
+   x->lower_val = n->key;
+   x->upper_val = n->upper_val;
+   x->leftmin = MIN(x->left->leftmin, x->right->leftmin);
+   x->rightmax = MAX(x->left->rightmax, x->right->rightmax);
+   setMeasure(x);
+
+   n->height = 1 + MAX(n->left->height, n->right->height);
+}
+
+void left_rotate (m_tree_t * n) 
+{
+   m_tree_t * tmp = n->left;
+   int tmp_key = n->key;
+
+   n->left = n->right;
+   n->key = n->right->key;
+   n->right = n->right->right;
+   n->left->right = n->left->left;
+   n->left->left = tmp; 
+
+   m_tree_t * x = n->left;
+   x->key = tmp_key;
+   x->height = 1 + MAX(x->left->height, x->right->height);
+   x->lower_val = n->lower_val;
+   x->upper_val = n->key;
+   x->leftmin = MIN(x->left->leftmin, x->right->leftmin);
+   x->rightmax = MAX(x->left->rightmax, x->right->rightmax);
+   setMeasure(x);
+   
+   n->height = 1 + MAX(n->left->height, n->right->height);
+
+}
 
 void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
 {  
-    int st_size = 200;
-    m_tree_t * stack[200];
+    int st_size = 1000;
+    m_tree_t * stack[1000];
     m_tree_t *tmp_node;
     tmp_node = tree;
     int top = -1;
@@ -153,6 +163,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
       tree->lower_val = INT_MIN;
       tree->upper_val = INT_MAX;
       tree->left = (m_tree_t *) x;
+      setMeasure(tree);
       return;
     }
     while( tmp_node->right != NULL ) {
@@ -162,7 +173,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
               return;
           }
           stack[++top] = tmp_node;
-          if( new_key <= tmp_node->left->key ) {
+          if( new_key < tmp_node->key ) {
                tmp_node = tmp_node->left;
           } else {               
                tmp_node = tmp_node->right;
@@ -176,51 +187,51 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
         tmp_node->leftmin = MIN(T.a, tmp_node->leftmin);
         tmp_node->rightmax = MAX(T.b, tmp_node->rightmax);
         setMeasure(tmp_node);
-        return;
-    }
+    } else {
 
-    m_tree_t *old_leaf, *new_leaf;
-    old_leaf = get_node();
-    old_leaf->left = tmp_node->left; 
-    old_leaf->key = tmp_node->key;
-    old_leaf->right  = NULL;
-    old_leaf->leftmin = tmp_node->leftmin;
-    old_leaf->rightmax = tmp_node->rightmax;
-    new_leaf = get_node();
+        m_tree_t *old_leaf, *new_leaf;
+        old_leaf = get_node();
+        old_leaf->left = tmp_node->left; 
+        old_leaf->key = tmp_node->key;
+        old_leaf->right  = NULL;
+        old_leaf->leftmin = tmp_node->leftmin;
+        old_leaf->rightmax = tmp_node->rightmax;
+        new_leaf = get_node();
 
-    new_leaf->left = (m_tree_t *)x;    
-    new_leaf->key = new_key;
-    new_leaf->leftmin = T.a;
-    new_leaf->rightmax = T.b;
-    new_leaf->right  = NULL;
+        new_leaf->left = (m_tree_t *)x;    
+        new_leaf->key = new_key;
+        new_leaf->leftmin = T.a;
+        new_leaf->rightmax = T.b;
+        new_leaf->right  = NULL;
 
-    if (tmp_node->key < new_key ) {
-        tmp_node->left = old_leaf;
-        tmp_node->right = new_leaf;
-        tmp_node->key = new_key;
-        old_leaf->lower_val = tmp_node->lower_val;
-        old_leaf->upper_val = new_key;
-        new_leaf->lower_val = new_key;
-        new_leaf->upper_val = tmp_node->upper_val;
-    } else {     
-        tmp_node->left = new_leaf;
-        tmp_node->right = old_leaf;
-        new_leaf->lower_val = tmp_node->lower_val;
-        new_leaf->upper_val = new_key;
-        old_leaf->lower_val = new_key;
-        old_leaf->upper_val = tmp_node->upper_val;
-    }
+        if (tmp_node->key < new_key ) {
+            tmp_node->left = old_leaf;
+            tmp_node->right = new_leaf;
+            tmp_node->key = new_key;
+            old_leaf->lower_val = tmp_node->lower_val;
+            old_leaf->upper_val = new_key;
+            new_leaf->lower_val = new_key;
+            new_leaf->upper_val = tmp_node->upper_val;
+        } else {     
+            tmp_node->left = new_leaf;
+            tmp_node->right = old_leaf;
+            new_leaf->lower_val = tmp_node->lower_val;
+            new_leaf->upper_val = tmp_node->key;
+            old_leaf->lower_val = tmp_node->key;
+            old_leaf->upper_val = tmp_node->upper_val;
+        }
 
     //set the heights and measures of the nodes
-    setMeasure(old_leaf);
-    setMeasure(new_leaf);
-    setMeasure(tmp_node);
-    tmp_node->height = 1;
-    new_leaf->height = 0;
-    old_leaf->height = 0;
-    tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
-    tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+        setMeasure(old_leaf);
+        setMeasure(new_leaf);
+        setMeasure(tmp_node);
+        tmp_node->height = 1;
+        new_leaf->height = 0;
+        old_leaf->height = 0;
 
+        tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
+        tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+    }
     int temp_top = top;
     while(top >=0) {
       tmp_node = stack[top--];
@@ -228,7 +239,9 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
       tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
       tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
     }
+  
     top = temp_top;
+    
     while (top >= 0) { 
         tmp_node = stack[top--];
         int prev_height = tmp_node->height;
@@ -413,7 +426,7 @@ void level_order (m_tree_t *tree) {
        tmp = queue[0];
        if (tmp == NULL) printf("Level completed\n\n");
        else {
-          printf("(key=%d height=%d", tmp->key, tmp->height);
+          printf("(key=%d height=%d measure=%d l=%d u=%d", tmp->key, tmp->height, tmp->measure, tmp->lower_val, tmp->upper_val);
           if (tmp->right == NULL) {
               printf(" %s ",(char *)tmp->left);
           }
@@ -442,7 +455,6 @@ int main()
    while( (nextop = getchar())!= 'q' )
    { if( nextop == 'i' )
      { int x,y, success;
-       scanf(" %d", &x);
        fseek(stdin,0,SEEK_END);
        scanf ("%d %d", &x, &y);
        insert_interval(searchtree, x, y);
