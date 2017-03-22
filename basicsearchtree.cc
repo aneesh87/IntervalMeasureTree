@@ -147,8 +147,9 @@ void left_rotate (m_tree_t * n)
 
 void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
 {  
-    int st_size = 1000;
-    m_tree_t * stack[1000];
+    // Quick inline stack
+    int st_size = 400;
+    m_tree_t * stack[400];
     m_tree_t *tmp_node;
     tmp_node = tree;
     int top = -1;
@@ -215,10 +216,10 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
         } else {     
             tmp_node->left = new_leaf;
             tmp_node->right = old_leaf;
-            new_leaf->lower_val = tmp_node->lower_val;
-            new_leaf->upper_val = tmp_node->key;
             old_leaf->lower_val = tmp_node->key;
             old_leaf->upper_val = tmp_node->upper_val;
+            new_leaf->lower_val = tmp_node->lower_val;
+            new_leaf->upper_val = tmp_node->key;
         }
 
     //set the heights and measures of the nodes
@@ -233,6 +234,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
         tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
     }
     // set Measures along the path to the root
+    // save top value for balancing which may need to be done
     int temp_top = top;
     while(top >=0) {
       tmp_node = stack[top--];
@@ -266,76 +268,133 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
     }
 }
 
-object_t *_delete(m_tree_t *tree, key_t delete_key, struct interval_t T)
-{  m_tree_t *tmp_node, *upper_node, *other_node;
+void _delete(m_tree_t *tree, key_t delete_key, struct interval_t T)
+{  m_tree_t *tmp_node, *upper_node = NULL, *other_node = NULL;
    
    object_t *deleted_object;
-   int st_size = 1000;
-   m_tree_t * stack[1000];
+   int st_size = 400;
+   m_tree_t * stack[400];
    int top = -1;
    
-   if (tree->key == 1 || delete_key >= tree->key) {
-       return( NULL );
-   } else  {  
-       tmp_node = tree;
-       while (tmp_node->right != NULL ) {
-          if (top == st_size -1) {
-              // TODO: realloc ??
-              printf("Delete Failed due to Stack Overflow\n");
-              return (NULL);
-          }
-          stack[++top] = tmp_node;   
-          upper_node = tmp_node;
-          
-          if(delete_key <= tmp_node->left->key ) {  
-              tmp_node   = upper_node->left; 
-              other_node = upper_node->right;
-          } else { 
-               tmp_node   = upper_node->right; 
-               other_node = upper_node->left;
-          } 
-       } 
-       // upper_node->key   = 1;
-       // printf("upper %d tmp %d other %d \n", upper_node->key, tmp_node->key, other_node->key);
-       // printf("tmp obj %s\n", (char *)tmp_node->left);
+   //Empty Tree
+   if (tree->left == NULL) {
+       return;
+   }  
+   tmp_node = tree;
+   while (tmp_node->right != NULL ) {
        
-       upper_node->left  = other_node->left;
-       upper_node->right = other_node->right;
-       upper_node->height = other_node->height;
-       upper_node->key = other_node->key;
-       deleted_object = (object_t *) tmp_node->left;
-       return_node( tmp_node );
-       return_node( other_node );
-
-        top--;
-
-        while (top >= 0) { 
-           tmp_node = stack[top--];
-           int prev_height = tmp_node->height;
-           if (tmp_node->left->height - tmp_node->right->height == 2) { 
-               if(tmp_node->left->left->height == tmp_node->right->height + 1) { 
-                  right_rotate(tmp_node);
-               } else { 
-                  left_rotate(tmp_node->left);
-                  right_rotate(tmp_node);
-               }
-           } else if(tmp_node->right->height - tmp_node->left->height == 2) { 
-                     if(tmp_node->right->right->height ==tmp_node->left->height + 1) { 
-                        left_rotate(tmp_node);
-                     } else { 
-                        right_rotate(tmp_node->right);
-                        left_rotate(tmp_node);
-                     }
-           } else { 
-                  tmp_node->height = 1 + MAX(tmp_node->left->height, tmp_node->right->height);
-           }
-           if(tmp_node->height == prev_height) break;
+       if (top == st_size -1) {
+           // TODO: realloc ??
+           printf("Delete Failed due to Stack Overflow\n");
+           return;
         }
+        stack[++top] = tmp_node;   
+        upper_node = tmp_node;
+          
+        if(delete_key < tmp_node->key ) {  
+           tmp_node   = upper_node->left; 
+           other_node = upper_node->right;
+         } else { 
+           tmp_node   = upper_node->right; 
+           other_node = upper_node->left;
+        } 
+   } 
+   // Check if key to delete matches one in the leaf    
+   if (delete_key != tmp_node->key) {
+       // Delete Key not matched
+       return;
+    }
 
-       return( deleted_object );
+    // Delete the interval from leaf's interval list
+    struct interval_list * t = (struct interval_list *) tmp_node->left;
+    
+    if (t && T.a == t->interval.a &&  T.b == t->interval.b) {
+        tmp_node->left = (struct m_tree_t *) t->next;
+        free(t);
+    } else  {
+        while (t) {
+            if (t->next != NULL && t->next->interval.a == T.a && t->next->interval.b == T.b) {
+                struct interval_list * temp = t->next;
+                t->next = temp->next;
+                free(temp);
+                break;
+             } else {
+                 t = t->next;
+             }
+        }
+    }
+    /* 
+     * If all intervals have been deleted then we need to delete the leaf as well 
+     * Otherwise just resetting measure and leftmin rightmax is enough
+     */
+    if (tmp_node->left != NULL) {
+        setMinMax(tmp_node);
+        setMeasure(tmp_node);      
+    } else {
+        if (upper_node == NULL) {
+            /* Tree will be empty after this delete, reset it */
+            tree->key = 0;
+            tree->left = NULL;
+            tree->right = NULL;
+            tree->height = 0;
+            tree->measure = 0;
+            tree->lower_val = 0;
+            tree->upper_val = 0;
+            tree->leftmin = 0;
+            tree->rightmax = 0;
+            return;
+        }
+        upper_node->left  = other_node->left;
+        upper_node->right = other_node->right;
+        upper_node->height = other_node->height;
+        upper_node->key = other_node->key;
+        upper_node->rightmax = other_node->rightmax;
+        upper_node->leftmin = other_node->leftmin;
+        /* 
+         * If new upper node is not a leaf, then the upper and lower limits of its
+         * children need to be changed.
+         */
+        if(upper_node->right != NULL){
+           upper_node->right->upper_val = upper_node->upper_val;
+           upper_node->left->lower_val = upper_node->lower_val;
+        }       
+        return_node( tmp_node );
+        return_node( other_node );
+        top--;
+        setMeasure(upper_node);
+    }
+    //save the top value for balancing
+    int temp_top = top;
+    while(top >=0) {
+      tmp_node = stack[top--];
+      setMeasure(tmp_node);
+      tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
+      tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+    }
+    top = temp_top;
+    while (top >= 0) { 
+       tmp_node = stack[top--];
+       int prev_height = tmp_node->height;
+       if (tmp_node->left->height - tmp_node->right->height == 2) { 
+           if(tmp_node->left->left->height == tmp_node->right->height + 1) { 
+              right_rotate(tmp_node);
+            } else { 
+               left_rotate(tmp_node->left);
+               right_rotate(tmp_node);
+            }
+       } else if(tmp_node->right->height - tmp_node->left->height == 2) { 
+                 if(tmp_node->right->right->height ==tmp_node->left->height + 1) { 
+                    left_rotate(tmp_node);
+                  } else { 
+                    right_rotate(tmp_node->right);
+                    left_rotate(tmp_node);
+                  }
+       } else { 
+              tmp_node->height = 1 + MAX(tmp_node->left->height, tmp_node->right->height);
+       }
+       if(tmp_node->height == prev_height) break;
     }
 }
-
 
 // the main functions
 
@@ -348,8 +407,10 @@ m_tree_t * create_m_tree() {
   new_tree->right = NULL;
   new_tree->height = 0;
   new_tree->measure = 0;
-  new_tree->leftmin = INT_MIN;
-  new_tree->rightmax = INT_MAX;
+  new_tree->leftmin = 0;
+  new_tree->rightmax = 0;
+  new_tree->upper_val = 0;
+  new_tree->lower_val = 0;
   
   return ( new_tree );
 }
@@ -368,7 +429,7 @@ void insert_interval( m_tree_t *tree, int lower, int upper) {
     struct interval_t y;
     y.a = lower;
     y.b = upper;
-
+    // Insert the two endpoints one by one
     insert(tree, lower,  y);
     insert(tree, upper,  y);
 }
@@ -381,7 +442,7 @@ void delete_interval( m_tree_t *tree, int lower, int upper) {
   struct interval_t y;
   y.a = lower;
   y.b = upper;
-
+  //del the two endpoints one by one
   _delete(tree, lower, y); 
   _delete(tree, upper, y); 
 }
@@ -394,7 +455,7 @@ void destroy_list(struct interval_list * t) {
       free(tmp);
   }
 }
-
+/* Reference: sample remove_tree code provided for program 1 */
 void destroy_m_tree(m_tree_t *tree)
 {  m_tree_t *current_node, *tmp;
    if( tree->left == NULL )
@@ -428,6 +489,9 @@ void destroy_m_tree(m_tree_t *tree)
  Functions to Test
  */
 void level_order (m_tree_t *tree) {
+    if (tree == NULL) {
+      return;
+    }
     m_tree_t * queue[200];
     m_tree_t * tmp = NULL;
     int i = 0;
