@@ -181,14 +181,7 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
           }
     }
     /* found the candidate leaf. Test whether key distinct */ 
-    if (new_key == tmp_node->key) {
-        struct interval_list * temp = (struct interval_list * ) tmp_node->left;
-        x->next = (struct interval_list *)temp;
-        tmp_node->left = (m_tree_t *) x;
-        tmp_node->leftmin = MIN(T.a, tmp_node->leftmin);
-        tmp_node->rightmax = MAX(T.b, tmp_node->rightmax);
-        setMeasure(tmp_node);
-    } else {
+    if (new_key != tmp_node->key) {
 
         m_tree_t *old_leaf, *new_leaf;
         old_leaf = get_node();
@@ -232,6 +225,15 @@ void insert(m_tree_t *tree, key_t new_key, struct interval_t T)
 
         tmp_node->leftmin = MIN(tmp_node->left->leftmin, tmp_node->right->leftmin);
         tmp_node->rightmax = MAX(tmp_node->left->rightmax, tmp_node->right->rightmax);
+
+    } else {
+
+        struct interval_list * temp = (struct interval_list * ) tmp_node->left;
+        x->next = (struct interval_list *)temp;
+        tmp_node->left = (m_tree_t *) x;
+        tmp_node->leftmin = MIN(T.a, tmp_node->leftmin);
+        tmp_node->rightmax = MAX(T.b, tmp_node->rightmax);
+        setMeasure(tmp_node);
     }
     // set Measures along the path to the root
     // save top value for balancing which may need to be done
@@ -348,16 +350,20 @@ void _delete(m_tree_t *tree, key_t delete_key, struct interval_t T)
         upper_node->right = other_node->right;
         upper_node->height = other_node->height;
         upper_node->key = other_node->key;
-        upper_node->rightmax = other_node->rightmax;
-        upper_node->leftmin = other_node->leftmin;
+
         /* 
          * If new upper node is not a leaf, then the upper and lower limits of its
          * children need to be changed.
          */
+
         if(upper_node->right != NULL){
            upper_node->right->upper_val = upper_node->upper_val;
            upper_node->left->lower_val = upper_node->lower_val;
-        }       
+        }
+
+        upper_node->rightmax = other_node->rightmax;
+        upper_node->leftmin = other_node->leftmin;
+    
         return_node( tmp_node );
         return_node( other_node );
         top--;
